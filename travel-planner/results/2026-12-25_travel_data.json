@@ -1,0 +1,63 @@
+{
+  "date": "2026-12-25",
+  "recommendation": {
+    "recommended_city": "제주",
+    "weather": "정보 없음 (LLM 응답 파싱 실패)",
+    "events": [],
+    "reason": "LLM 응답 파싱에 실패하여 기본값을 사용합니다."
+  },
+  "restaurants": [
+    {
+      "name": "중문수두리보말칼국수",
+      "address": "제주특별자치도 서귀포시 천제연로 192",
+      "category": "음식점 > 한식 > 국수 > 칼국수",
+      "url": "http://place.map.kakao.com/1148098112",
+      "x": "126.42499942161753",
+      "y": "33.25156773781329"
+    },
+    {
+      "name": "가시아방국수",
+      "address": "제주특별자치도 서귀포시 성산읍 섭지코지로 10",
+      "category": "음식점 > 한식 > 국수",
+      "url": "http://place.map.kakao.com/22895321",
+      "x": "126.91806478438669",
+      "y": "33.43860508447686"
+    },
+    {
+      "name": "바다속고등어쌈밥",
+      "address": "제주특별자치도 제주시 애월읍 일주서로 7089",
+      "category": "음식점 > 한식 > 해물,생선",
+      "url": "http://place.map.kakao.com/20733624",
+      "x": "126.40681075080656",
+      "y": "33.48428558352624"
+    },
+    {
+      "name": "제갈양",
+      "address": "제주특별자치도 제주시 한림읍 한림로 155",
+      "category": "음식점 > 한식 > 해물,생선",
+      "url": "http://place.map.kakao.com/25851685",
+      "x": "126.22442903696",
+      "y": "33.3860320662365"
+    },
+    {
+      "name": "중문색달통갈치",
+      "address": "제주특별자치도 서귀포시 일주서로 993",
+      "category": "음식점 > 한식 > 해물,생선",
+      "url": "http://place.map.kakao.com/1602465884",
+      "x": "126.4045539601241",
+      "y": "33.258359906046735"
+    }
+  ],
+  "errors": [
+    {
+      "step": "recommendation",
+      "type": "PARSE_ERROR_RETRY",
+      "message": "Gemini API 오류: HTTP 503 - {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n"
+    },
+    {
+      "step": "recommendation",
+      "type": "PARSE_ERROR",
+      "message": "Gemini API 오류: HTTP 503 - {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n"
+    }
+  ]
+}
