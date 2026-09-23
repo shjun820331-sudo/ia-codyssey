@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기한지킴이</title>
+  <meta name="description" content="디지털 라이프의 모든 데드라인을 한곳에서 관리하는 기한지킴이" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (window.tailwind) tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Pretendard Variable"', 'Pretendard', 'system-ui', 'sans-serif'] },
+          colors: {
+            primary: { DEFAULT: '#3182CE', dark: '#2B6CB0', soft: '#EBF4FF' },
+            bg: '#F7FAFC',
+            ink: { DEFAULT: '#2D3748', sub: '#718096' },
+            alert: '#E53E3E',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="bg-bg text-ink font-sans antialiased min-h-screen">
+
+  <!-- ===== Header ===== -->
+  <header class="sticky top-0 z-30 bg-bg/90 backdrop-blur border-b border-slate-200/60">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="text-2xl" aria-hidden="true">🛡️</span>
+        <div class="min-w-0">
+          <h1 class="text-lg font-extrabold tracking-tight leading-tight">기한지킴이</h1>
+          <p id="today-label" class="text-xs text-ink-sub"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-notify" type="button" class="btn-ghost w-10 px-0" title="브라우저 알림 켜기" aria-label="브라우저 알림 켜기">🔔</button>
+        <button type="button" data-action="open-category" class="btn-secondary">+ 카테고리 추가</button>
+        <button type="button" data-action="open-item" class="btn-primary">+ 항목 추가</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 pb-24">
+    <!-- 긴급 알림 배너 -->
+    <section id="alert-banner" class="mt-4 hidden" aria-live="polite"></section>
+
+    <!-- 요약 배너 -->
+    <section id="summary" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3"></section>
+
+    <!-- 뷰 전환 탭 -->
+    <nav id="tabs" class="mt-6 flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1" role="tablist" aria-label="보기 전환"></nav>
+
+    <!-- 메인 뷰 -->
+    <section id="view" class="mt-5"></section>
+  </main>
+
+  <footer class="max-w-5xl mx-auto px-4 pb-10 text-xs text-ink-sub flex flex-wrap items-center gap-x-4 gap-y-2">
+    <span>데이터는 이 브라우저(LocalStorage)에만 저장됩니다.</span>
+    <button type="button" data-action="export" class="underline underline-offset-2 hover:text-ink">백업 내보내기</button>
+    <label class="underline underline-offset-2 hover:text-ink cursor-pointer">
+      백업 불러오기<input id="import-file" type="file" accept="application/json" class="hidden" />
+    </label>
+    <button type="button" data-action="reset" class="underline underline-offset-2 hover:text-alert">전체 초기화</button>
+  </footer>
+
+  <!-- ===== 항목 추가/수정 모달 ===== -->
+  <div id="item-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="item-modal-title">
+    <div class="modal-backdrop" data-action="close-modal"></div>
+    <form id="item-form" class="modal-panel" novalidate>
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="item-modal-title" class="text-lg font-bold">새 항목 추가</h2>
+        <button type="button" class="btn-icon" data-action="close-modal" aria-label="닫기">✕</button>
+      </div>
+
+      <!-- OCR -->
+      <div class="rounded-2xl border border-dashed border-primary/40 bg-primary-soft/60 p-4 mb-5">
+        <button type="button" id="btn-ocr" class="w-full btn-primary justify-center py-3 text-base">
+          <span id="ocr-btn-label">📸 이미지로 자동 입력</span>
+        </button>
+        <p class="text-xs text-ink-sub mt-2 text-center">영수증·기프티콘·고지서 사진을 올리면 브라우저 안에서 무료로 글자를 읽어 채워드려요.</p>
+        <input id="ocr-file" type="file" accept="image/*" class="hidden" />
+        <div id="ocr-result" class="hidden mt-3 flex gap-3 items-start">
+          <img id="ocr-preview" alt="업로드한 이미지 미리보기" class="w-16 h-16 object-cover rounded-xl border border-slate-200 bg-white" />
+          <details class="flex-1 min-w-0 text-xs text-ink-sub">
+            <summary class="cursor-pointer select-none">인식된 원문 보기</summary>
+            <pre id="ocr-text" class="mt-2 whitespace-pre-wrap break-words bg-white rounded-lg p-2 max-h-40 overflow-auto font-sans"></pre>
+          </details>
+        </div>
+      </div>
+
+      <input type="hidden" name="id" />
+
+      <label class="field">
+        <span class="field-label">항목 이름 <b class="text-alert">*</b></span>
+        <input name="title" type="text" maxlength="60" class="input" placeholder="예) 스타벅스 아메리카노 기프티콘" required />
+      </label>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="field">
+          <span class="field-label flex items-center gap-1">
+            대분류
+            <span id="category-tip" class="tip cursor-help text-ink-sub" data-tip="" tabindex="0" aria-label="카테고리 설명">ⓘ</span>
+          </span>
+          <select name="categoryId" class="input"></select>
+        </div>
+        <div class="field">
+          <span class="field-label">세부 메뉴</span>
+          <select name="sub" class="input"></select>
+        </div>
+      </div>
+      <label id="custom-sub-wrap" class="field hidden">
+        <span class="field-label">세부 메뉴 직접 입력</span>
+        <input name="customSub" type="text" maxlength="30" class="input" placeholder="원하는 세부 메뉴 이름" />
+      </label>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="field">
+          <span class="field-label">마감일 <b class="text-alert">*</b></span>
+          <input name="dueDate" type="date" class="input" required />
+        </label>
+        <label class="field">
+          <span class="field-label">금액 (선택)</span>
+          <div class="relative">
+            <input name="amount" type="text" inputmode="numeric" class="input has-suffix" placeholder="0" />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-sub text-sm">원</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="field">
+        <span class="field-label">반복</span>
+        <div class="segmented" data-name="repeat">
+          <button type="button" data-value="none">한 번만</button>
+          <button type="button" data-value="weekly">매주</button>
+          <button type="button" data-value="monthly">매월</button>
+          <button type="button" data-value="yearly">매년</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">리마인드 시점</span>
+        <div class="segmented" data-name="remind">
+          <button type="button" data-value="0">당일</button>
+          <button type="button" data-value="1">D-1</button>
+          <button type="button" data-value="3">D-3</button>
+          <button type="button" data-value="7">D-7</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span class="field-label">메모 (선택)</span>
+        <textarea name="memo" rows="2" maxlength="200" class="input resize-none" placeholder="쿠폰 번호, 사용처 등"></textarea>
+      </label>
+
+      <p id="item-form-error" class="text-sm text-alert mb-3 hidden"></p>
+
+      <div class="flex gap-2 pt-2">
+        <button type="button" id="btn-delete-item" class="btn-danger hidden" data-action="delete-from-modal">삭제</button>
+        <button type="button" class="btn-secondary flex-1 justify-center" data-action="close-modal">취소</button>
+        <button type="submit" class="btn-primary flex-[2] justify-center">저장하기</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== 카테고리 추가 모달 ===== -->
+  <div id="category-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+    <div class="modal-backdrop" data-action="close-modal"></div>
+    <form id="category-form" class="modal-panel" novalidate>
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="category-modal-title" class="text-lg font-bold">나만의 카테고리 만들기</h2>
+        <button type="button" class="btn-icon" data-action="close-modal" aria-label="닫기">✕</button>
+      </div>
+
+      <div id="category-preview" class="rounded-2xl bg-slate-50 p-4 mb-5 flex items-center gap-3"></div>
+
+      <div class="grid grid-cols-[88px_1fr] gap-3">
+        <label class="field">
+          <span class="field-label">이모지</span>
+          <input name="emoji" type="text" maxlength="4" class="input text-center text-xl" value="⭐" />
+        </label>
+        <label class="field">
+          <span class="field-label">이름 <b class="text-alert">*</b></span>
+          <input name="name" type="text" maxlength="12" class="input" placeholder="예) 반려동물" required />
+        </label>
+      </div>
+      <div class="flex flex-wrap gap-1.5 -mt-2 mb-4" id="emoji-picks"></div>
+
+      <div class="field">
+        <span class="field-label">색상</span>
+        <div id="color-picks" class="flex flex-wrap gap-2 items-center"></div>
+        <input type="hidden" name="color" value="#3182CE" />
+      </div>
+
+      <label class="field">
+        <span class="field-label">설명 (툴팁에 표시)</span>
+        <input name="desc" type="text" maxlength="50" class="input" placeholder="예) 사료, 접종, 미용 예약 등" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">세부 메뉴 (쉼표로 구분, 선택)</span>
+        <input name="subs" type="text" class="input" placeholder="예) 사료 구매, 예방접종, 미용 예약" />
+      </label>
+
+      <p id="category-form-error" class="text-sm text-alert mb-3 hidden"></p>
+
+      <div class="flex gap-2 pt-2">
+        <button type="button" class="btn-secondary flex-1 justify-center" data-action="close-modal">취소</button>
+        <button type="submit" class="btn-primary flex-[2] justify-center">카테고리 만들기</button>
+      </div>
+
+      <div id="custom-category-list" class="mt-6"></div>
+    </form>
+  </div>
+
+  <!-- 토스트 -->
+  <div id="toasts" class="fixed bottom-6 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none" aria-live="polite"></div>
+
+  <script src="js/ocr-parser.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
