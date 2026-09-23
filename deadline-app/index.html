@@ -136,6 +136,16 @@ dialog::backdrop{background:rgba(10,14,20,.45)}
 .btn{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 16px;font-weight:600}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .err{color:var(--bad);font-size:13px;margin:0}
+.cal-list{display:flex;flex-direction:column;gap:8px}
+.cal-opt{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:left}
+.cal-opt:hover{border-color:var(--accent)}
+.cal-opt b{font-weight:600}
+.cal-opt span{font-size:13px;color:var(--muted)}
+.howto{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.howto h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0}
+.howto ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.howto p{margin:0;font-size:13px;color:var(--muted)}
+.howto .btn{align-self:flex-start}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;z-index:10;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:no-preference){.item{transition:border-color .15s}.item:hover{border-color:var(--muted)}}
 </style>
@@ -172,6 +182,17 @@ dialog::backdrop{background:rgba(10,14,20,.45)}
     <summary id="done-sum">완료한 항목</summary>
     <div id="done-list"></div>
   </details>
+
+  <section class="howto" id="howto">
+    <h2>휴대폰으로 알림 받기</h2>
+    <ol>
+      <li>항목의 <b>알림</b> 버튼을 누르세요.</li>
+      <li><b>Google 캘린더에 추가</b>를 누르고 저장하면 휴대폰 캘린더 앱이 알림을 보내 줘요.</li>
+      <li>구독처럼 반복되는 항목은 캘린더에서도 매월·매년 반복돼요.</li>
+    </ol>
+    <p id="howto-ics">아이폰 기본 캘린더를 쓰면 아래 버튼으로 전체 항목을 .ics 파일로 받아 여세요. 설정한 ‘며칠 전’과 당일 오전 9시에 알림이 울려요.</p>
+    <button class="btn primary" type="button" id="ics-all">전체 항목 캘린더 파일(.ics) 받기</button>
+  </section>
 
   <section class="ideas">
     <h2>이런 기한도 챙겨 보세요</h2>
@@ -282,6 +303,27 @@ dialog::backdrop{background:rgba(10,14,20,.45)}
       <button class="btn" type="button" id="b-close">닫기</button>
       <button class="btn" type="button" id="b-copy">복사</button>
       <button class="btn primary" type="button" id="b-load">불러오기</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="cdlg">
+  <div class="dlg">
+    <h2>알림 받기</h2>
+    <p class="hint" id="c-info"></p>
+    <div class="cal-list">
+      <a class="cal-opt" id="c-google" href="#" target="_blank" rel="noopener">
+        <b>Google 캘린더에 추가</b>
+        <span>안드로이드·아이폰의 Google 캘린더 앱으로 알림이 와요. 열린 화면에서 ‘저장’을 누르세요.</span>
+      </a>
+      <button class="cal-opt" type="button" id="c-ics">
+        <b>캘린더 파일(.ics) 받기</b>
+        <span>아이폰 기본 캘린더·삼성 캘린더용. ‘며칠 전’과 당일 오전 9시에 알림이 울려요.</span>
+      </button>
+    </div>
+    <p class="hint" id="c-tip"></p>
+    <div class="dlg-acts">
+      <button class="btn" type="button" id="c-close">닫기</button>
     </div>
   </div>
 </dialog>
@@ -508,6 +550,7 @@ function itemHtml(r){
   }else{
     var doneLabel = it.repeat!=="none" ? (it.cat==="home"?"교체함":"해지함") : (it.cat==="food"?"다 먹음":"사용함");
     acts='<button type="button" class="btn-s primary" data-act="done" data-id="'+id+'">'+doneLabel+'</button>'+
+         '<button type="button" class="btn-s" data-act="cal" data-id="'+id+'">알림</button>'+
          '<button type="button" class="btn-s" data-act="edit" data-id="'+id+'">수정</button>'+
          '<button type="button" class="btn-s" data-act="askdel" data-id="'+id+'">삭제</button>';
   }
@@ -610,6 +653,7 @@ document.addEventListener("click", function(e){
     var id=b.getAttribute("data-id"), act=b.getAttribute("data-act");
     var it=state.items.find(function(i){ return i.id===id; }); if(!it) return;
     if(act==="edit"){ openForm(it); return; }
+    if(act==="cal"){ openCal(it); return; }
     if(act==="askdel"){ pendingDelete=id; render(); return; }
     if(act==="undel"){ pendingDelete=null; render(); return; }
     if(act==="del"){ state.items=state.items.filter(function(i){ return i.id!==id; }); pendingDelete=null; toast("삭제했어요"); }
@@ -659,6 +703,90 @@ $("b-load").addEventListener("click", function(){
     state.items=items; save(); render(); $("bdlg").close(); toast(items.length+"개 불러왔어요");
   }catch(e){ $("b-err").textContent="백업 형식이 맞지 않아요. 복사한 내용을 그대로 붙여넣었는지 확인하세요."; $("b-err").hidden=false; }
 });
+
+/* ---------- calendar reminders ---------- */
+// Inside the Claude artifact viewer file downloads are blocked, so .ics is offered only in the standalone file.
+var canDownload = window.self === window.top;
+function ymd(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate()); }
+function rrule(it){
+  switch(it.repeat){
+    case "month": return "FREQ=MONTHLY";
+    case "year": return "FREQ=YEARLY";
+    case "week": return "FREQ=WEEKLY";
+    case "days": return "FREQ=DAILY;INTERVAL="+Math.max(1,+it.every||1);
+    default: return "";
+  }
+}
+function calTitle(it){
+  var kind = it.repeat!=="none" ? (it.cat==="home"?"교체일":"결제일") : (it.cat==="food"?"유통기한":"만료일");
+  return "[기한지기] "+it.name+" "+kind;
+}
+function calDetails(it){
+  var lines=[];
+  if(+it.price) lines.push("금액: "+won(+it.price)+"원");
+  if(it.memo) lines.push("메모: "+it.memo);
+  lines.push("기한지기에서 추가한 일정");
+  return lines.join("\n");
+}
+function googleUrl(it){
+  var d=nextDue(it); if(!d) return "#";
+  var p=new URLSearchParams({action:"TEMPLATE", text:calTitle(it), dates:ymd(d)+"/"+ymd(addDays(d,1)), details:calDetails(it)});
+  var r=rrule(it); if(r) p.set("recur","RRULE:"+r);
+  return "https://calendar.google.com/calendar/render?"+p.toString();
+}
+function icsEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/([,;])/g,"\\$1"); }
+function fold(line){
+  // RFC 5545: lines longer than 75 octets continue on the next line after a space
+  var out="", n=0;
+  for(var ch of line){
+    var b=new TextEncoder().encode(ch).length;
+    if(n+b>74){ out+="\r\n "; n=1; }
+    out+=ch; n+=b;
+  }
+  return out;
+}
+function icsFor(items){
+  var now=new Date(), stamp=now.toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//gihanjigi//KO","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:기한지기"];
+  items.forEach(function(it){
+    var d=nextDue(it); if(!d) return;
+    var remind=Math.max(1,+it.remind||3);
+    L.push("BEGIN:VEVENT","UID:"+it.id+"@gihanjigi","DTSTAMP:"+stamp,
+      "DTSTART;VALUE=DATE:"+ymd(d),"DTEND;VALUE=DATE:"+ymd(addDays(d,1)),
+      "SUMMARY:"+icsEsc(calTitle(it)),"DESCRIPTION:"+icsEsc(calDetails(it)));
+    var r=rrule(it); if(r) L.push("RRULE:"+r);
+    // N days before at 09:00, and the day itself at 09:00
+    L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc(it.name+" "+remind+"일 남음"),"TRIGGER:-PT"+(remind*24-9)+"H","END:VALARM");
+    L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc(it.name+" 오늘까지"),"TRIGGER:PT9H","END:VALARM");
+    L.push("END:VEVENT");
+  });
+  L.push("END:VCALENDAR");
+  return L.map(fold).join("\r\n")+"\r\n";
+}
+function saveIcs(items, name){
+  var list=items.filter(function(i){ return !i.done && nextDue(i); });
+  if(!list.length){ toast("받을 항목이 없어요"); return; }
+  var url=URL.createObjectURL(new Blob([icsFor(list)],{type:"text/calendar;charset=utf-8"}));
+  var a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+  toast("캘린더 파일을 받았어요. 열어서 추가하세요");
+}
+var calItem=null;
+function openCal(it){
+  calItem=it;
+  var d=nextDue(it);
+  $("c-info").textContent = "‘"+it.name+"’ · "+(d?fmt(d):"날짜 없음")+(it.repeat!=="none"?" · "+repeatLabel(it)+" 반복":"");
+  $("c-google").href = googleUrl(it);
+  $("c-ics").hidden = !canDownload;
+  $("c-tip").textContent = "Google 캘린더는 기본 알림(보통 하루 전)이 붙어요. 저장 화면의 ‘알림’에서 "+(+it.remind||3)+"일 전으로 바꿀 수 있어요."
+    + (canDownload ? "" : " 아이폰 기본 캘린더용 .ics 파일은 앱을 내려받아 열었을 때 받을 수 있어요.");
+  $("cdlg").showModal();
+}
+$("c-close").addEventListener("click", function(){ $("cdlg").close(); });
+$("c-google").addEventListener("click", function(){ setTimeout(function(){ $("cdlg").close(); },300); });
+$("c-ics").addEventListener("click", function(){ if(calItem) saveIcs([calItem], "기한지기-"+calItem.name.replace(/[\\/:*?"<>|]/g,"")+".ics"); $("cdlg").close(); });
+$("ics-all").addEventListener("click", function(){ saveIcs(state.items, "기한지기-전체.ics"); });
+if(!canDownload){ $("ics-all").hidden=true; $("howto-ics").textContent="아이폰 기본 캘린더를 쓰면 GitHub의 index.html을 내려받아 열고 ‘전체 항목 캘린더 파일(.ics) 받기’를 누르세요."; }
 
 load(); renderIdeas(); render();
 if(!storageOk) toast("이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라집니다");
