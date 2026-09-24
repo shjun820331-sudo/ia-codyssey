@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4299E1"/>
-      <stop offset="1" stop-color="#2B6CB0"/>
-    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5AA8FF"/><stop offset="1" stop-color="#2159E0"/></linearGradient>
+    <linearGradient id="fire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC24B"/><stop offset="1" stop-color="#FF4F4F"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0B3A8C" flood-opacity=".35"/></filter>
   </defs>
   <rect width="512" height="512" fill="url(#bg)"/>
-  <path d="M256 104 L372 146 V252 C372 330 322 384 256 410 C190 384 140 330 140 252 V146 Z" fill="#FFFFFF"/>
-  <path d="M204 258 L243 297 L312 222" fill="none" stroke="#3182CE" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path filter="url(#sh)" fill-rule="evenodd" fill="#FFFFFF" d="M136 136 H256 C346 136 396 196 396 268 C396 340 346 400 256 400 H136 Z M196 196 V340 H252 C306 340 334 308 334 268 C334 228 306 196 252 196 Z"/>
+  <path d="M264 208 C290 236 304 258 302 286 C300 312 282 328 263 328 C241 328 224 312 224 289 C224 270 235 257 246 248 C246 265 252 274 261 277 C256 256 256 232 264 208 Z" fill="url(#fire)"/>
 </svg>

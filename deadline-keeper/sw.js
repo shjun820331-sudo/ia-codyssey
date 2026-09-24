@@ -4,7 +4,7 @@
  * - CDN(Tailwind, 글꼴, Tesseract.js): 한 번 받은 뒤 캐시에서 제공
  * 앱 파일을 바꿔 배포할 때는 VERSION을 올린다.
  */
-const VERSION = 'dk-v1';
+const VERSION = 'dk-v2';
 const APP_SHELL = [
   './',
   './index.html',
