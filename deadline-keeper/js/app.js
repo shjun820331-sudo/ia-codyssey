@@ -95,6 +95,17 @@
     return base;
   }
 
+  // 사생활 보호 모드 등에서는 저장소 접근 자체가 예외를 던질 수 있다
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 저장 불가 환경 */ } },
+    remove: (k) => { try { localStorage.removeItem(k); } catch (e) { /* 저장 불가 환경 */ } },
+  };
+  const session = {
+    get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* 저장 불가 환경 */ } },
+  };
+
   function load(key, fallback) {
     try {
       const raw = localStorage.getItem(key);
@@ -114,7 +125,7 @@
     items: load(KEYS.items, []),
     archive: load(KEYS.archive, []),
     customCategories: load(KEYS.categories, []),
-    tab: sessionStorage.getItem('dk.tab') || 'timeline',
+    tab: session.get('dk.tab') || 'timeline',
     calCursor: todayStr().slice(0, 7), // YYYY-MM
     calSelected: todayStr(),
     alertDismissed: false,
@@ -149,7 +160,7 @@
   // 4. 샘플 데이터 (첫 방문 시 1회)
   // ============================================================
   function seedIfFirstVisit() {
-    if (localStorage.getItem(KEYS.seeded) || state.items.length || state.archive.length) return;
+    if (store.get(KEYS.seeded) || state.items.length || state.archive.length) return;
     const t = todayStr();
     const mk = (title, categoryId, sub, offset, amount, repeat = 'none', remind = 1, memo = '') => {
       const dueDate = addDays(t, offset);
@@ -169,7 +180,7 @@
     state.archive = [
       { ...mk('메가커피 아이스티 기프티콘', 'food', '모바일 쿠폰/기프티콘', -3, 2500), completedAt: addDays(t, -4) },
     ];
-    localStorage.setItem(KEYS.seeded, '1');
+    store.set(KEYS.seeded, '1');
     persist();
   }
 
@@ -302,6 +313,7 @@
     const d = new Date();
     $('#today-label').textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS[d.getDay()]}요일`;
     const btn = $('#btn-notify');
+    if (!btn) return;
     if (!('Notification' in window)) btn.classList.add('hidden');
     else if (Notification.permission === 'granted') { btn.textContent = '🔔'; btn.title = '브라우저 알림이 켜져 있어요'; btn.style.opacity = 1; }
     else { btn.textContent = '🔕'; btn.title = '브라우저 알림 켜기'; btn.style.opacity = .7; }
@@ -805,7 +817,7 @@
       tesseractWorker = null;
       t.close();
       $('#ocr-text').textContent = '분석에 실패했어요.';
-      toast('이미지 분석에 실패했어요. 네트워크 상태를 확인하거나 직접 입력해 주세요.', { duration: 5000 });
+      toast('사진을 인식하지 못했어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.', { duration: 5000 });
     } finally {
       ocrAbort = null;
       btn.disabled = false;
@@ -904,12 +916,12 @@
     toast(`${cat.emoji} '${cat.name}' 카테고리를 만들었어요.`, { action: { label: '항목 추가', fn: () => openItemModal({ categoryId: cat.id }) } });
   }
 
-  function deleteCategory(id) {
+  async function deleteCategory(id) {
     const cat = state.customCategories.find((c) => c.id === id);
     if (!cat) return;
     const count = state.items.filter((i) => i.categoryId === id).length;
     if (count) { toast(`'${cat.name}'에 항목이 ${count}개 있어 삭제할 수 없어요. 항목을 먼저 옮기거나 지워 주세요.`, { duration: 5000 }); return; }
-    if (!confirm(`'${cat.name}' 카테고리를 삭제할까요?`)) return;
+    if (!(await askConfirm(`'${cat.name}' 카테고리를 삭제할까요?`))) return;
     state.customCategories = state.customCategories.filter((c) => c.id !== id);
     persist();
     renderCustomCategoryList();
@@ -932,12 +944,33 @@
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 
+  /** window.confirm 대신 쓰는 페이지 내 확인 창 (confirm이 막힌 환경에서도 동작) */
+  function askConfirm(message, okLabel = '삭제') {
+    return new Promise((resolve) => {
+      const modal = $('#confirm-modal');
+      $('#confirm-message').textContent = message;
+      $('#confirm-ok').textContent = okLabel;
+      modal.classList.remove('hidden');
+      const done = (ok) => {
+        modal.classList.add('hidden');
+        modal.removeEventListener('click', onClick);
+        document.removeEventListener('keydown', onKey, true);
+        resolve(ok);
+      };
+      const onClick = (e) => { const b = e.target.closest('[data-confirm]'); if (b) done(b.dataset.confirm === 'ok'); };
+      const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+      modal.addEventListener('click', onClick);
+      document.addEventListener('keydown', onKey, true);
+      setTimeout(() => $('#confirm-ok').focus(), 30);
+    });
+  }
+
   // ============================================================
   // 13. 브라우저 알림 (푸시)
   // ============================================================
   function notifyIfNeeded() {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    if (localStorage.getItem(KEYS.notified) === todayStr()) return;
+    if (store.get(KEYS.notified) === todayStr()) return;
     const { today, overdue, reminded } = alertBuckets();
     if (!today.length && !reminded.length && !overdue.length) return;
     const parts = [];
@@ -946,7 +979,7 @@
     if (overdue.length) parts.push(`기한 지남 ${overdue.length}개`);
     try {
       new Notification('🛡️ 기한지킴이', { body: `${parts.join(' · ')}\n${[...today, ...reminded].slice(0, 3).map((i) => i.title).join(', ')}`, tag: 'dk-daily' });
-      localStorage.setItem(KEYS.notified, todayStr());
+      store.set(KEYS.notified, todayStr());
     } catch (e) { /* 일부 모바일 브라우저는 페이지에서 직접 알림을 띄울 수 없다 */ }
   }
 
@@ -954,9 +987,10 @@
     if (!('Notification' in window)) return toast('이 브라우저는 알림을 지원하지 않아요.');
     if (Notification.permission === 'granted') return toast('알림이 이미 켜져 있어요. 매일 첫 접속 시 알려드려요.');
     if (Notification.permission === 'denied') return toast('브라우저 설정에서 알림 권한을 허용해 주세요.');
-    const p = await Notification.requestPermission();
+    let p = 'default';
+    try { p = await Notification.requestPermission(); } catch (e) { return toast('이 환경에서는 브라우저 알림을 켤 수 없어요.'); }
     renderHeader();
-    if (p === 'granted') { toast('🔔 알림을 켰어요. 리마인드 시점이 되면 알려드려요.'); localStorage.removeItem(KEYS.notified); notifyIfNeeded(); }
+    if (p === 'granted') { toast('🔔 알림을 켰어요. 리마인드 시점이 되면 알려드려요.'); store.remove(KEYS.notified); notifyIfNeeded(); }
   }
 
   // ============================================================
@@ -991,12 +1025,12 @@
     reader.readAsText(file);
   }
 
-  function resetAll() {
-    if (!confirm('모든 항목, 아카이브, 커스텀 카테고리를 삭제할까요? 되돌릴 수 없어요.')) return;
+  async function resetAll() {
+    if (!(await askConfirm('모든 항목, 아카이브, 커스텀 카테고리를 삭제할까요? 되돌릴 수 없어요.', '모두 삭제'))) return;
     state.items = [];
     state.archive = [];
     state.customCategories = [];
-    localStorage.setItem(KEYS.seeded, '1');
+    store.set(KEYS.seeded, '1');
     persist();
     render();
     toast('모든 데이터를 초기화했어요.');
@@ -1019,11 +1053,13 @@
       case 'restore': restoreFromArchive(id); break;
       case 'delete-archive': deleteArchive(id); break;
       case 'clear-archive':
-        if (confirm('완료 아카이브를 모두 비울까요?')) { snapshot(); state.archive = []; persist(); render(); toast('아카이브를 비웠어요.', { action: { label: '되돌리기', fn: undo } }); }
+        askConfirm('완료 아카이브를 모두 비울까요?', '비우기').then((ok) => {
+          if (ok) { snapshot(); state.archive = []; persist(); render(); toast('아카이브를 비웠어요.', { action: { label: '되돌리기', fn: undo } }); }
+        });
         break;
       case 'tab':
         state.tab = el.dataset.tab;
-        sessionStorage.setItem('dk.tab', state.tab);
+        session.set('dk.tab', state.tab);
         renderTabs();
         renderView();
         break;
@@ -1074,7 +1110,7 @@
     renderCategoryPreview();
   });
 
-  $('#btn-notify').addEventListener('click', requestNotification);
+  $('#btn-notify')?.addEventListener('click', requestNotification);
   $('#import-file').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importData(f); });
 
   document.addEventListener('keydown', (e) => {

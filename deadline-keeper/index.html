@@ -12,7 +12,7 @@
     if (window.tailwind) tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['"Pretendard Variable"', 'Pretendard', 'system-ui', 'sans-serif'] },
+          fontFamily: { sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', '"Apple SD Gothic Neo"', '"Noto Sans KR"', 'system-ui', 'sans-serif'] },
           colors: {
             primary: { DEFAULT: '#3182CE', dark: '#2B6CB0', soft: '#EBF4FF' },
             bg: '#F7FAFC',
@@ -215,6 +215,18 @@
 
       <div id="custom-category-list" class="mt-6"></div>
     </form>
+  </div>
+
+  <!-- 확인 창 -->
+  <div id="confirm-modal" class="modal hidden" style="z-index:45" role="alertdialog" aria-modal="true" aria-labelledby="confirm-message">
+    <div class="modal-backdrop" data-confirm="cancel"></div>
+    <div class="modal-panel text-center">
+      <p id="confirm-message" class="text-base font-bold mt-2 mb-6 break-keep"></p>
+      <div class="flex gap-2">
+        <button type="button" class="btn-secondary flex-1 justify-center" data-confirm="cancel">취소</button>
+        <button type="button" id="confirm-ok" class="btn-danger flex-1 justify-center" data-confirm="ok">삭제</button>
+      </div>
+    </div>
   </div>
 
   <!-- 토스트 -->

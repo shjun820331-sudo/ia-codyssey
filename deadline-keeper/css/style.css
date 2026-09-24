@@ -11,6 +11,9 @@
 }
 
 body { word-break: keep-all; }
+/* 노치·홈 인디케이터가 있는 휴대폰에서 고정 요소가 가려지지 않도록 */
+header.sticky { top: env(safe-area-inset-top, 0px); }
+#toasts { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 /* Tailwind CDN 스타일과 로드 순서가 달라도 숨김 처리는 항상 우선 */
 .hidden { display: none !important; }
 
@@ -93,7 +96,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .modal-backdrop { position: absolute; inset: 0; background: rgba(26, 32, 44, .45); animation: fade .2s ease; }
 .modal-panel {
   position: relative; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto;
-  background: #fff; border-radius: 24px 24px 0 0; padding: 22px 20px 24px;
+  background: #fff; border-radius: 24px 24px 0 0; padding: 22px 20px calc(24px + env(safe-area-inset-bottom, 0px));
   animation: slide-up .25s cubic-bezier(.2,.8,.2,1);
 }
 @media (min-width: 640px) {
