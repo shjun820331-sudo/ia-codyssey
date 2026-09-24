@@ -396,7 +396,10 @@
             <span class="badge tip" style="background:${cat.color}14;color:${cat.color}" data-tip="${escapeHtml(cat.desc)}">${cat.emoji} ${escapeHtml(cat.name)}</span>
             ${item.sub ? `<span class="badge bg-slate-100 text-slate-500 max-w-[180px] truncate">${escapeHtml(item.sub)}</span>` : ''}
           </div>
-          <button type="button" class="btn-icon -mr-1 -mt-1 shrink-0" data-action="edit" data-id="${item.id}" aria-label="수정">✎</button>
+          <div class="flex -mr-1 -mt-1 shrink-0">
+            <button type="button" class="btn-icon" data-action="share" data-id="${item.id}" aria-label="공유 링크 보내기" title="공유 링크 보내기">🔗</button>
+            <button type="button" class="btn-icon" data-action="edit" data-id="${item.id}" aria-label="수정">✎</button>
+          </div>
         </div>
 
         ${isToday ? `<div><span class="badge urgent-badge bg-red-50 text-alert border border-red-200">🔥 오늘 안 쓰면 손해!</span></div>` : ''}
@@ -672,6 +675,7 @@
     $('#ocr-result').classList.add('hidden');
     $('#item-modal-title').textContent = item ? '항목 수정' : '새 항목 추가';
     $('#btn-delete-item').classList.toggle('hidden', !item);
+    $('#btn-share-item').classList.toggle('hidden', !item);
 
     itemForm.id.value = item ? item.id : '';
     itemForm.title.value = item ? item.title : '';
@@ -1048,6 +1052,10 @@
       case 'open-category': openCategoryModal(); break;
       case 'close-modal': closeModals(); break;
       case 'edit': openItemModal({ id }); break;
+      case 'share': shareItem(id); break;
+      case 'share-from-modal': shareItem(itemForm.id.value); break;
+      case 'share-accept': acceptSharedItem(); break;
+      case 'share-dismiss': closeShareModal(); break;
       case 'complete': completeItem(id, el.closest('.item-card')); break;
       case 'delete-from-modal': { const itemId = itemForm.id.value; closeModals(); deleteItem(itemId); break; }
       case 'restore': restoreFromArchive(id); break;
@@ -1172,10 +1180,162 @@
   });
 
   // ============================================================
-  // 17. 시작
+  // 17. 항목 공유 링크 (서버 없이 주소의 # 뒤에 항목을 담아 보낸다)
+  // ============================================================
+  // # 뒤(해시)는 서버로 전송되지 않으므로 항목 내용이 어디에도 저장되지 않는다
+  const SHARE_PREFIX = '#share=';
+  let pendingShare = null;
+
+  const toBase64Url = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const fromBase64Url = (b64) => {
+    const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  };
+
+  function buildShareUrl(item) {
+    const cat = getCat(item.categoryId);
+    const payload = {
+      v: 1, t: item.title, c: item.categoryId, s: item.sub, d: item.dueDate,
+      a: item.amount || 0, r: item.repeat, m: item.remind, o: item.memo || '',
+    };
+    // 받는 사람에게 없는 커스텀 카테고리는 이름·이모지·색상을 함께 보낸다
+    if (!BUILTIN_CATEGORIES.some((c) => c.id === item.categoryId)) payload.k = { n: cat.name, e: cat.emoji, col: cat.color, ds: cat.desc || '' };
+    return location.href.split('#')[0] + SHARE_PREFIX + toBase64Url(JSON.stringify(payload));
+  }
+
+  async function shareItem(id) {
+    const item = state.items.find((i) => i.id === id);
+    if (!item) return;
+    const url = buildShareUrl(item);
+    const d = ddayOf(item.dueDate);
+    const text = `🛡️ 기한지킴이 | ${item.title} (${prettyDate(item.dueDate)}, ${d < 0 ? '기한 지남' : d === 0 ? '오늘 마감' : `D-${d}`})`;
+    // 휴대폰: 카카오톡·문자 등으로 바로 보내는 공유 창
+    if (navigator.share) {
+      try { await navigator.share({ title: '기한지킴이', text, url }); return; }
+      catch (e) { if (e.name === 'AbortError') return; }
+    }
+    // PC 등: 링크를 복사
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      toast('🔗 공유 링크를 복사했어요. 원하는 곳에 붙여넣어 보내세요.');
+    } catch (e) {
+      showShareModal({ copyUrl: url });
+    }
+  }
+
+  function parseSharedHash() {
+    if (!location.hash.startsWith(SHARE_PREFIX)) return null;
+    try {
+      const p = JSON.parse(fromBase64Url(location.hash.slice(SHARE_PREFIX.length)));
+      if (!p || typeof p.t !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.d)) return null;
+      return {
+        title: p.t.slice(0, 60),
+        categoryId: String(p.c || 'food'),
+        sub: String(p.s || '').slice(0, 30),
+        dueDate: p.d,
+        amount: Math.max(0, Number(p.a) || 0),
+        repeat: ['none', 'weekly', 'monthly', 'yearly'].includes(p.r) ? p.r : 'none',
+        remind: [0, 1, 3, 7].includes(Number(p.m)) ? Number(p.m) : 1,
+        memo: String(p.o || '').slice(0, 200),
+        customCategory: p.k && p.k.n ? { name: String(p.k.n).slice(0, 12), emoji: String(p.k.e || '⭐').slice(0, 4), color: /^#[0-9a-f]{6}$/i.test(p.k.col) ? p.k.col : '#3182CE', desc: String(p.k.ds || '').slice(0, 50) } : null,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearShareHash() {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  function showShareModal({ incoming, copyUrl }) {
+    const modal = $('#share-modal');
+    const body = $('#share-modal-body');
+    const actions = $('#share-modal-actions');
+    if (incoming) {
+      const cat = incoming.customCategory
+        ? { emoji: incoming.customCategory.emoji, name: incoming.customCategory.name, color: incoming.customCategory.color }
+        : getCat(incoming.categoryId);
+      const d = ddayOf(incoming.dueDate);
+      $('#share-modal-title').textContent = '공유받은 항목이 있어요';
+      body.innerHTML = `
+        <div class="rounded-2xl bg-slate-50 p-4 text-left">
+          <div class="flex flex-wrap gap-1.5">
+            <span class="badge" style="background:${cat.color}14;color:${cat.color}">${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</span>
+            ${incoming.sub ? `<span class="badge bg-white text-slate-500">${escapeHtml(incoming.sub)}</span>` : ''}
+          </div>
+          <p class="text-[17px] font-bold mt-2 break-words">${escapeHtml(incoming.title)}</p>
+          ${incoming.memo ? `<p class="text-xs text-ink-sub mt-1">${escapeHtml(incoming.memo)}</p>` : ''}
+          <div class="flex flex-wrap items-center gap-1.5 mt-3">
+            ${ddayBadge(d)}
+            <span class="text-xs text-ink-sub">${prettyDate(incoming.dueDate)}</span>
+            ${incoming.repeat !== 'none' ? `<span class="badge bg-white text-slate-600">🔁 ${REPEAT_LABEL[incoming.repeat]}</span>` : ''}
+            ${incoming.amount ? `<span class="ml-auto font-bold">${won(incoming.amount)}</span>` : ''}
+          </div>
+        </div>
+        <p class="text-sm text-ink-sub mt-3">내 목록에 추가할까요?</p>`;
+      actions.innerHTML = `
+        <button type="button" class="btn-secondary flex-1 justify-center" data-action="share-dismiss">괜찮아요</button>
+        <button type="button" class="btn-primary flex-[2] justify-center" data-action="share-accept">내 목록에 추가</button>`;
+    } else {
+      $('#share-modal-title').textContent = '공유 링크';
+      body.innerHTML = `
+        <p class="text-sm text-ink-sub mb-2">아래 링크를 길게 눌러 복사한 뒤 보내 주세요.</p>
+        <textarea readonly class="input text-xs h-28 resize-none break-all" onclick="this.select()">${escapeHtml(copyUrl)}</textarea>`;
+      actions.innerHTML = `<button type="button" class="btn-primary flex-1 justify-center" data-action="share-dismiss">닫기</button>`;
+    }
+    modal.classList.remove('hidden');
+  }
+
+  function closeShareModal() {
+    $('#share-modal').classList.add('hidden');
+    pendingShare = null;
+    clearShareHash();
+  }
+
+  function acceptSharedItem() {
+    const s = pendingShare;
+    if (!s) return closeShareModal();
+    let categoryId = s.categoryId;
+    if (s.customCategory) {
+      // 같은 이름의 카테고리가 있으면 그걸 쓰고, 없으면 새로 만든다
+      const existing = categories().find((c) => c.name === s.customCategory.name);
+      if (existing) categoryId = existing.id;
+      else {
+        categoryId = 'c_' + uid();
+        state.customCategories.push({ id: categoryId, ...s.customCategory, subs: s.sub ? [s.sub] : [], custom: true });
+      }
+    } else if (!categories().some((c) => c.id === categoryId)) {
+      categoryId = BUILTIN_CATEGORIES[0].id;
+    }
+    const { customCategory, ...fields } = s;
+    state.items.push({ id: uid(), ...fields, categoryId, anchorDay: parseDate(s.dueDate).getDate(), doneCount: 0, createdAt: Date.now() });
+    persist();
+    closeShareModal();
+    render();
+    toast(`✅ '${s.title}'을(를) 내 목록에 추가했어요.`);
+  }
+
+  function checkIncomingShare() {
+    if (!location.hash.startsWith(SHARE_PREFIX)) return;
+    const incoming = parseSharedHash();
+    if (!incoming) {
+      clearShareHash();
+      toast('공유 링크가 잘렸거나 올바르지 않아요. 링크 전체를 다시 받아 주세요.', { duration: 5000 });
+      return;
+    }
+    pendingShare = incoming;
+    showShareModal({ incoming });
+  }
+
+  window.addEventListener('hashchange', checkIncomingShare);
+
+  // ============================================================
+  // 18. 시작
   // ============================================================
   seedIfFirstVisit();
   setupInstall();
   render();
+  checkIncomingShare();
   notifyIfNeeded();
 })();

@@ -181,6 +181,7 @@
 
       <div class="flex gap-2 pt-2">
         <button type="button" id="btn-delete-item" class="btn-danger hidden" data-action="delete-from-modal">삭제</button>
+        <button type="button" id="btn-share-item" class="btn-secondary hidden" data-action="share-from-modal" aria-label="공유 링크 보내기">🔗</button>
         <button type="button" class="btn-secondary flex-1 justify-center" data-action="close-modal">취소</button>
         <button type="submit" class="btn-primary flex-[2] justify-center">저장하기</button>
       </div>
@@ -235,6 +236,19 @@
 
       <div id="custom-category-list" class="mt-6"></div>
     </form>
+  </div>
+
+  <!-- 공유 링크 받기 / 링크 복사 창 -->
+  <div id="share-modal" class="modal hidden" style="z-index:45" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+    <div class="modal-backdrop" data-action="share-dismiss"></div>
+    <div class="modal-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="share-modal-title" class="text-lg font-bold">공유받은 항목이 있어요</h2>
+        <button type="button" class="btn-icon" data-action="share-dismiss" aria-label="닫기">✕</button>
+      </div>
+      <div id="share-modal-body"></div>
+      <div id="share-modal-actions" class="flex gap-2 pt-4"></div>
+    </div>
   </div>
 
   <!-- 확인 창 -->
