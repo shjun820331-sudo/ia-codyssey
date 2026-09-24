@@ -1130,9 +1130,52 @@
   });
 
   // ============================================================
-  // 16. 시작
+  // 16. 앱 설치 (PWA)
+  // ============================================================
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  let installPrompt = null;
+
+  function setupInstall() {
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* 설치 기능 없이도 앱은 동작 */ });
+    }
+    if (isStandalone()) return;
+
+    // Android·PC Chrome: 브라우저가 설치 가능하다고 알려주면 버튼을 보여준다
+    const btn = $('#btn-install');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPrompt = e;
+      btn?.classList.remove('hidden');
+    });
+    btn?.addEventListener('click', async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      installPrompt = null;
+      btn.classList.add('hidden');
+      if (outcome === 'accepted') toast('📲 홈 화면에 기한지킴이를 설치했어요.');
+    });
+    window.addEventListener('appinstalled', () => btn?.classList.add('hidden'));
+
+    // iPhone Safari: 설치 이벤트가 없어 '홈 화면에 추가' 방법을 안내한다
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|KAKAOTALK|NAVER|Instagram/.test(ua);
+    if (isIOS && isSafari && !store.get('dk.iosTipDismissed')) $('#ios-install-tip')?.classList.remove('hidden');
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-action="dismiss-ios-tip"]')) return;
+    $('#ios-install-tip').classList.add('hidden');
+    store.set('dk.iosTipDismissed', '1');
+  });
+
+  // ============================================================
+  // 17. 시작
   // ============================================================
   seedIfFirstVisit();
+  setupInstall();
   render();
   notifyIfNeeded();
 })();

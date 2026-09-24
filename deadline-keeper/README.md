@@ -14,6 +14,16 @@ python3 -m http.server 8000
 `index.html`을 더블클릭해서 열어도 대부분 동작하지만, OCR(Web Worker)과 브라우저 알림은 `http://localhost` 이상의 환경에서 가장 안정적입니다.
 첫 방문 시 오늘 날짜 기준 샘플 데이터가 자동으로 들어갑니다. 하단의 **전체 초기화**로 비울 수 있습니다.
 
+## 📲 앱으로 설치하기 (PWA)
+
+HTTPS 주소(GitHub Pages 등)로 열면 홈 화면에 앱으로 설치할 수 있습니다. 설치하면 주소창 없이 전체 화면으로 열리고, 한 번 연 뒤에는 인터넷이 없어도 실행됩니다.
+
+- **Android (Chrome, 삼성 인터넷)**: 상단의 `📲 앱 설치` 버튼, 또는 브라우저 메뉴 → `앱 설치` / `홈 화면에 추가`
+- **iPhone (Safari)**: 아래쪽 공유 버튼(□↑) → `홈 화면에 추가` (앱 화면 상단에 안내 카드가 표시됩니다)
+- **PC (Chrome, Edge)**: 주소창 오른쪽의 설치 아이콘
+
+앱 파일을 수정해 다시 배포할 때는 `sw.js`의 `VERSION` 값을 올려야 설치된 앱도 새 버전으로 바뀝니다.
+
 ## 기능 요약
 
 | 영역 | 내용 |
@@ -32,6 +42,9 @@ python3 -m http.server 8000
 ```
 deadline-keeper/
 ├── index.html          # 레이아웃, 모달, Tailwind 테마(컬러 팔레트) 설정
+├── manifest.webmanifest # 앱 이름·아이콘·전체 화면 설정 (PWA)
+├── sw.js               # 오프라인 실행용 서비스 워커
+├── icons/              # 앱 아이콘 (192/512, maskable, apple-touch)
 ├── css/style.css       # 버튼·탭·카드·모달·토스트·툴팁 컴포넌트 스타일
 └── js/
     ├── app.js          # 상태/저장, D-Day 계산, 렌더링, 완료·반복 로직, 알림, OCR 연동

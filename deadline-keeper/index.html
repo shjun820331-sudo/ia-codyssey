@@ -2,10 +2,17 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>기한지킴이</title>
   <meta name="description" content="디지털 라이프의 모든 데드라인을 한곳에서 관리하는 기한지킴이" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#F7FAFC" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="기한지킴이" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -38,6 +45,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button id="btn-install" type="button" class="btn-secondary hidden" title="홈 화면에 앱으로 설치">📲 앱 설치</button>
         <button id="btn-notify" type="button" class="btn-ghost w-10 px-0" title="브라우저 알림 켜기" aria-label="브라우저 알림 켜기">🔔</button>
         <button type="button" data-action="open-category" class="btn-secondary">+ 카테고리 추가</button>
         <button type="button" data-action="open-item" class="btn-primary">+ 항목 추가</button>
@@ -46,6 +54,18 @@
   </header>
 
   <main class="max-w-5xl mx-auto px-4 pb-24">
+    <!-- iOS 설치 안내 (Safari는 설치 버튼 이벤트가 없어 직접 안내) -->
+    <section id="ios-install-tip" class="mt-4 hidden">
+      <div class="card p-4 flex items-start gap-3">
+        <img src="icons/apple-touch-icon.png" alt="" class="w-11 h-11 rounded-xl shrink-0" />
+        <div class="flex-1 min-w-0 text-sm">
+          <p class="font-bold">기한지킴이를 앱으로 설치해 보세요</p>
+          <p class="text-ink-sub mt-0.5">Safari 아래쪽 <b>공유 버튼(□↑)</b> → <b>홈 화면에 추가</b>를 누르면 앱처럼 쓸 수 있어요.</p>
+        </div>
+        <button type="button" class="btn-icon" data-action="dismiss-ios-tip" aria-label="안내 닫기">✕</button>
+      </div>
+    </section>
+
     <!-- 긴급 알림 배너 -->
     <section id="alert-banner" class="mt-4 hidden" aria-live="polite"></section>
 
