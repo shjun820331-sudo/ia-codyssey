@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>부수입 가계부</title>
+  <meta name="description" content="과외, 앱테크, 중고거래 등 부수입을 기록하고 월별 순수익과 받을 돈을 한눈에 보는 가계부" />
+  <meta name="theme-color" content="#F5F8F6" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#121614" media="(prefers-color-scheme: dark)" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <h1>부수입 가계부</h1>
+        <p id="today-label" class="sub"></p>
+      </div>
+      <button type="button" class="btn btn-primary" data-action="open-add">+ 기록하기</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- 월 이동 -->
+    <nav class="month-nav" aria-label="월 이동">
+      <button type="button" class="btn-icon" data-action="prev-month" aria-label="이전 달">‹</button>
+      <h2 id="month-label">2026년 10월</h2>
+      <button type="button" class="btn-icon" data-action="next-month" aria-label="다음 달">›</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="this-month" id="btn-this-month">이번 달</button>
+    </nav>
+
+    <!-- 요약 -->
+    <section class="summary" id="summary" aria-live="polite"></section>
+
+    <!-- 받을 돈 -->
+    <section id="pending-section" class="panel" hidden>
+      <div class="panel-head">
+        <h3>아직 받을 돈</h3>
+        <span class="muted" id="pending-hint">입금되면 '받았어요'를 눌러 주세요</span>
+      </div>
+      <ul class="pending-list" id="pending-list"></ul>
+    </section>
+
+    <!-- 카테고리별 -->
+    <section class="panel" id="breakdown-section">
+      <div class="panel-head">
+        <h3>카테고리별 수입</h3>
+        <span class="muted" id="breakdown-total"></span>
+      </div>
+      <div id="breakdown"></div>
+    </section>
+
+    <!-- 내역 -->
+    <section class="panel">
+      <div class="panel-head">
+        <h3>내역</h3>
+        <span class="muted" id="list-count"></span>
+      </div>
+      <div class="chips" id="filter-chips" role="tablist" aria-label="카테고리 필터"></div>
+      <div id="entry-list"></div>
+    </section>
+
+    <!-- 백업 -->
+    <section class="panel tools">
+      <div class="panel-head"><h3>백업</h3></div>
+      <p class="muted">기록은 이 기기의 브라우저에 저장돼요. 기기를 바꾸거나 브라우저 데이터를 지우기 전에 백업 파일을 받아 두세요.</p>
+      <div class="tool-row">
+        <button type="button" class="btn btn-secondary" data-action="export-csv">엑셀용 CSV 받기</button>
+        <button type="button" class="btn btn-secondary" data-action="export-json">백업 파일 받기</button>
+        <label class="btn btn-secondary" for="import-file">백업 불러오기</label>
+        <input type="file" id="import-file" accept="application/json,.json" hidden />
+      </div>
+    </section>
+  </main>
+
+  <!-- 입력/수정 모달 -->
+  <div class="modal" id="entry-modal" hidden>
+    <div class="modal-backdrop" data-action="close-modal"></div>
+    <form class="modal-card" id="entry-form" autocomplete="off" novalidate>
+      <div class="modal-head">
+        <h3 id="modal-title">부수입 기록</h3>
+        <button type="button" class="btn-icon" data-action="close-modal" aria-label="닫기">✕</button>
+      </div>
+
+      <label class="field">
+        <span>날짜</span>
+        <input type="date" id="f-date" required />
+      </label>
+
+      <div class="field">
+        <span>카테고리</span>
+        <div class="chips chips-pick" id="f-category-chips"></div>
+        <div class="custom-cat" id="custom-cat-row" hidden>
+          <input type="text" id="f-custom-cat" maxlength="12" placeholder="예: 블로그, 대리운전" />
+        </div>
+      </div>
+
+      <label class="field">
+        <span>금액 (들어온 돈)</span>
+        <div class="money-input">
+          <input type="text" inputmode="numeric" id="f-amount" placeholder="0" required />
+          <em>원</em>
+        </div>
+      </label>
+
+      <label class="field">
+        <span>비용 <small>(선택 · 수수료, 택배비, 재료비 등)</small></span>
+        <div class="money-input">
+          <input type="text" inputmode="numeric" id="f-cost" placeholder="0" />
+          <em>원</em>
+        </div>
+      </label>
+
+      <div class="field">
+        <span>입금 상태</span>
+        <div class="segmented" role="radiogroup">
+          <label><input type="radio" name="f-status" value="done" checked /><span>받았어요</span></label>
+          <label><input type="radio" name="f-status" value="pending" /><span>받을 예정</span></label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>메모 <small>(선택)</small></span>
+        <input type="text" id="f-memo" maxlength="60" placeholder="예: 수학 과외 10월분, 당근 아이패드 판매" />
+      </label>
+
+      <p class="form-error" id="form-error" role="alert"></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="btn-delete" hidden>삭제</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-action="close-modal">취소</button>
+        <button type="submit" class="btn btn-primary" id="btn-save">저장</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 확인 모달 -->
+  <div class="modal" id="confirm-modal" hidden>
+    <div class="modal-backdrop" data-action="confirm-no"></div>
+    <div class="modal-card modal-sm" role="alertdialog" aria-labelledby="confirm-text">
+      <p id="confirm-text"></p>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-action="confirm-no">취소</button>
+        <button type="button" class="btn btn-danger" data-action="confirm-yes" id="confirm-yes">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
