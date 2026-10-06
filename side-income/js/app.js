@@ -507,7 +507,51 @@
     if (ev.key === STORAGE_KEY) { state = load(); render(); }
   });
 
+  // ---------- 앱 설치 (PWA) ----------
+  const IOS_TIP_KEY = 'side-income-ios-tip-dismissed';
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  let installPrompt = null;
+
+  function setupInstall() {
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* 설치 기능 없이도 앱은 동작 */ });
+    }
+    if (isStandalone()) return;
+
+    // Android·PC Chrome: 브라우저가 설치 가능하다고 알려주면 버튼을 보여준다
+    const btn = $('#btn-install');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPrompt = e;
+      btn.hidden = false;
+    });
+    btn.addEventListener('click', async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      installPrompt = null;
+      btn.hidden = true;
+      if (outcome === 'accepted') toast('홈 화면에 부수입 가계부를 설치했어요');
+    });
+    window.addEventListener('appinstalled', () => { btn.hidden = true; });
+
+    // iPhone Safari: 설치 이벤트가 없어 '홈 화면에 추가' 방법을 안내한다
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|KAKAOTALK|NAVER|Instagram/.test(ua);
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(IOS_TIP_KEY) === '1'; } catch (e) { /* 무시 */ }
+    if (isIOS && isSafari && !dismissed) $('#ios-install-tip').hidden = false;
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-action="dismiss-ios-tip"]')) return;
+    $('#ios-install-tip').hidden = true;
+    try { localStorage.setItem(IOS_TIP_KEY, '1'); } catch (err) { /* 무시 */ }
+  });
+
   bindMoneyFormat($('#f-amount'));
   bindMoneyFormat($('#f-cost'));
+  setupInstall();
   render();
 })();

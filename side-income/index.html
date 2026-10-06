@@ -7,6 +7,13 @@
   <meta name="description" content="과외, 앱테크, 중고거래 등 부수입을 기록하고 월별 순수익과 받을 돈을 한눈에 보는 가계부" />
   <meta name="theme-color" content="#F5F8F6" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#121614" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="부수입" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -17,11 +24,24 @@
         <h1>부수입 가계부</h1>
         <p id="today-label" class="sub"></p>
       </div>
-      <button type="button" class="btn btn-primary" data-action="open-add">+ 기록하기</button>
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-secondary" id="btn-install" hidden>앱 설치</button>
+        <button type="button" class="btn btn-primary" data-action="open-add">+ 기록하기</button>
+      </div>
     </div>
   </header>
 
   <main class="wrap">
+    <!-- iPhone Safari는 설치 버튼 이벤트가 없어 직접 안내 -->
+    <section class="panel install-tip" id="ios-install-tip" hidden>
+      <img src="icons/apple-touch-icon.png" alt="" />
+      <div>
+        <p><b>홈 화면에 앱으로 설치해 보세요</b></p>
+        <p class="muted">Safari 아래쪽 <b>공유 버튼(□↑)</b> → <b>홈 화면에 추가</b>를 누르면 앱처럼 쓸 수 있어요.</p>
+      </div>
+      <button type="button" class="btn-icon" data-action="dismiss-ios-tip" aria-label="안내 닫기">✕</button>
+    </section>
+
     <!-- 월 이동 -->
     <nav class="month-nav" aria-label="월 이동">
       <button type="button" class="btn-icon" data-action="prev-month" aria-label="이전 달">‹</button>

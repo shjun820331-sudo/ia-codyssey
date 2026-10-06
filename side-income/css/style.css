@@ -69,6 +69,7 @@ main.wrap { padding-block: 8px 96px; display: flex; flex-direction: column; gap:
 }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; }
 .brand h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.topbar-actions { display: flex; gap: 8px; }
 .brand .sub { margin: 0; font-size: 12px; color: var(--ink-sub); }
 
 /* ----- Buttons ----- */
@@ -123,6 +124,11 @@ main.wrap { padding-block: 8px 96px; display: flex; flex-direction: column; gap:
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .panel-head h3 { margin: 0; font-size: 16px; font-weight: 800; }
 .panel p { margin: 0; }
+
+/* 설치 안내 */
+.install-tip { grid-template-columns: 44px minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+.install-tip img { width: 44px; height: 44px; border-radius: 11px; }
+.install-tip p + p { margin-top: 2px; }
 
 /* 받을 돈 */
 .pending-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
