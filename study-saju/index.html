@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>공부사주</title>
+  <meta name="description" content="사주로 보는 나의 공부 스타일, 월별 공부 흐름, 시험 전략, 진로·직업 추천과 AI 상담" />
+  <meta name="theme-color" content="#F7F6FB" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#14131A" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="공부사주" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <h1>공부사주</h1>
+        <p class="sub">타고난 공부 스타일과 흐름을 읽는 학습 사주</p>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-install" hidden>앱 설치</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="open-settings" aria-label="설정">설정</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" id="main">
+    <!-- 저장된 사람 -->
+    <section class="people" id="people" hidden>
+      <div class="chips" id="people-list" role="tablist" aria-label="저장된 사주"></div>
+      <button type="button" class="chip chip-add" data-action="new-person">+ 새로 보기</button>
+    </section>
+
+    <!-- 입력 -->
+    <section class="panel" id="form-panel">
+      <div class="panel-head">
+        <h2 id="form-title">사주 정보 입력</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="cancel-form" id="btn-cancel-form" hidden>취소</button>
+      </div>
+      <form id="birth-form" novalidate>
+        <fieldset class="field">
+          <legend>누가 보나요?</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="mode" value="student" checked /><span>학생 본인</span></label>
+            <label><input type="radio" name="mode" value="parent" /><span>학부모(자녀)</span></label>
+          </div>
+        </fieldset>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="label" id="name-label">이름(별명)</span>
+            <input type="text" name="name" maxlength="12" placeholder="예: 지우" autocomplete="off" />
+          </label>
+          <fieldset class="field">
+            <legend>성별</legend>
+            <div class="seg" role="radiogroup">
+              <label><input type="radio" name="gender" value="F" checked /><span>여</span></label>
+              <label><input type="radio" name="gender" value="M" /><span>남</span></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <fieldset class="field">
+          <legend>생년월일</legend>
+          <div class="seg seg-sm" role="radiogroup">
+            <label><input type="radio" name="calendar" value="solar" checked /><span>양력</span></label>
+            <label><input type="radio" name="calendar" value="lunar" /><span>음력</span></label>
+          </div>
+          <div class="date-row">
+            <select name="year" aria-label="태어난 해"></select>
+            <select name="month" aria-label="태어난 달"></select>
+            <select name="day" aria-label="태어난 날"></select>
+          </div>
+          <label class="check" id="leap-wrap" hidden><input type="checkbox" name="leap" /> 윤달</label>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>태어난 시간</legend>
+          <div class="time-row">
+            <input type="time" name="time" value="12:00" aria-label="태어난 시각" />
+            <label class="check"><input type="checkbox" name="timeUnknown" /> 시간을 몰라요</label>
+          </div>
+          <p class="hint">시간을 알면 공부 스타일과 흐름이 훨씬 정확해져요. 모르면 시주(태어난 시의 기둥)를 빼고 봅니다.</p>
+        </fieldset>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="label">태어난 곳</span>
+            <select name="city"></select>
+          </label>
+          <label class="field">
+            <span class="label">학년</span>
+            <select name="grade"></select>
+          </label>
+        </div>
+        <label class="field" id="lon-wrap" hidden>
+          <span class="label">경도(동경, 도)</span>
+          <input type="number" name="longitude" step="0.01" min="-180" max="180" value="126.98" />
+        </label>
+
+        <fieldset class="field">
+          <legend>요즘 가장 큰 고민 <span class="muted">(선택)</span></legend>
+          <div class="chips" id="concern-chips"></div>
+        </fieldset>
+        <label class="field">
+          <span class="label">목표 <span class="muted">(선택)</span></span>
+          <input type="text" name="goal" maxlength="60" placeholder="예: 내신 2등급, 과학고 진학, 수학 성적 올리기" autocomplete="off" />
+        </label>
+
+        <details class="advanced">
+          <summary>정밀 설정</summary>
+          <label class="field">
+            <span class="label">출생 시각 보정</span>
+            <select name="correction">
+              <option value="mean" selected>경도 보정 (일반적인 방식, 서울 약 −32분)</option>
+              <option value="true">경도 + 균시차 보정 (천문 기준 진태양시)</option>
+              <option value="none">보정 안 함 (표준시 그대로)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">밤 11시~자정 출생</span>
+            <select name="ziSect">
+              <option value="1" selected>밤 11시부터 다음 날로 보기 (자시 통일)</option>
+              <option value="2">자정까지 그날로 보기 (야자시)</option>
+            </select>
+          </label>
+          <p class="hint">서머타임(1948~1960년, 1987~1988년)과 1954~1961년 표준시 변경은 자동으로 반영돼요.</p>
+        </details>
+
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block">공부사주 보기</button>
+      </form>
+    </section>
+
+    <!-- 결과 -->
+    <section id="report" hidden>
+      <div class="report-head">
+        <div>
+          <h2 id="report-title"></h2>
+          <p class="muted" id="report-sub"></p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="edit-person">정보 수정</button>
+      </div>
+
+      <nav class="tabs" role="tablist" aria-label="결과 보기">
+        <button type="button" role="tab" data-tab="summary" aria-selected="true">원국</button>
+        <button type="button" role="tab" data-tab="style" aria-selected="false">공부 스타일</button>
+        <button type="button" role="tab" data-tab="flow" aria-selected="false">공부 흐름</button>
+        <button type="button" role="tab" data-tab="career" aria-selected="false">진로·직업</button>
+        <button type="button" role="tab" data-tab="chat" aria-selected="false">AI 상담</button>
+      </nav>
+
+      <div class="tab-panel" data-panel="summary" role="tabpanel"></div>
+      <div class="tab-panel" data-panel="style" role="tabpanel" hidden></div>
+      <div class="tab-panel" data-panel="flow" role="tabpanel" hidden></div>
+      <div class="tab-panel" data-panel="career" role="tabpanel" hidden></div>
+      <div class="tab-panel" data-panel="chat" role="tabpanel" hidden>
+        <section class="panel" id="key-card" hidden>
+          <h3>AI 상담 시작하기</h3>
+          <p class="muted">AI 상담은 Anthropic의 Claude를 사용해요. 본인의 API 키를 넣으면 이 기기에만 저장되고, 질문할 때 Anthropic 서버로만 바로 전송돼요.</p>
+          <ol class="steps">
+            <li><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic 콘솔</a>에서 API 키를 만들어요.</li>
+            <li>아래에 붙여 넣고 저장해요.</li>
+          </ol>
+          <form id="key-form" class="key-row">
+            <input type="password" name="key" placeholder="sk-ant-..." autocomplete="off" aria-label="API 키" />
+            <button type="submit" class="btn btn-primary">저장</button>
+          </form>
+          <p class="hint">질문할 때마다 본인 계정에 API 사용료가 나가요(질문 1회에 보통 100원 안팎, 웹 검색을 하면 조금 더). 공용 기기에서는 키를 저장하지 마세요.</p>
+        </section>
+        <div id="chat-box" hidden>
+          <div class="chat-log" id="chat-log" aria-live="polite"></div>
+          <div class="chips suggest" id="suggest-chips"></div>
+          <form id="chat-form" class="chat-form">
+            <textarea name="q" rows="2" maxlength="1500" placeholder="예: 다음 달 기말고사, 어떻게 준비하면 좋을까요?" aria-label="질문"></textarea>
+            <button type="submit" class="btn btn-primary" id="btn-send">보내기</button>
+          </form>
+          <div class="chat-tools">
+            <button type="button" class="btn btn-ghost btn-sm" data-action="clear-chat">대화 지우기</button>
+            <span class="muted">사주 계산 결과와 학년·고민을 함께 보고 답해요. 필요하면 최신 입시·직업 정보를 검색해요.</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="disclaimer">사주는 타고난 경향을 보는 참고 자료예요. 실제 성적과 진로는 노력, 환경, 선택이 훨씬 크게 좌우합니다. 힘든 마음이 들 때는 청소년상담 1388, 자살예방상담 109에 언제든 연락하세요.</p>
+    </section>
+  </main>
+
+  <!-- 설정 -->
+  <dialog id="settings-dialog" class="sheet">
+    <form method="dialog" class="sheet-inner">
+      <h3>설정</h3>
+      <div class="field">
+        <span class="label">AI 상담 API 키</span>
+        <p class="muted" id="key-status"></p>
+        <div class="row-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-action="change-key">키 바꾸기</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="delete-key">키 삭제</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">저장된 사주</span>
+        <div class="row-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-action="export">백업 받기</button>
+          <label class="btn btn-secondary btn-sm file-btn">불러오기<input type="file" accept="application/json" id="import-file" hidden /></label>
+          <button type="button" class="btn btn-danger btn-sm" data-action="delete-person">지금 사람 삭제</button>
+        </div>
+      </div>
+      <p class="muted">모든 정보는 이 기기의 브라우저에만 저장돼요.</p>
+      <button class="btn btn-primary btn-block" value="close">닫기</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="js/vendor/lunar.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/knowledge.js"></script>
+  <script src="js/analysis.js"></script>
+  <script src="js/counsel.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
