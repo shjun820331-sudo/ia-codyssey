@@ -57,6 +57,8 @@
   let editingId = null;
   let chat = { api: [], view: [] };
   let asking = null; // AbortController
+  // AI 상담 방식: claude.ai 안이면 'viewer'(키 필요 없음), 그 밖이면 'key'. 판단 전에는 'pending'
+  let chatMode = window.claude ? 'pending' : 'key';
 
   // ---------- Helpers ----------
   const $ = (sel, el = document) => el.querySelector(sel);
@@ -501,10 +503,15 @@
     return list.slice(0, 5);
   }
   function renderChat() {
-    const hasKey = !!getKey();
-    $('#key-card').hidden = hasKey;
-    $('#chat-box').hidden = !hasKey;
-    if (!hasKey) return;
+    const inViewer = chatMode === 'viewer' || chatMode === 'pending';
+    const ready = inViewer || (chatMode === 'key' && !!getKey());
+    $('#key-card').hidden = chatMode !== 'key' || ready;
+    $('#chat-off').hidden = chatMode !== 'off';
+    $('#chat-box').hidden = !ready;
+    $('#chat-note').textContent = inViewer
+      ? '사주 계산 결과와 학년·고민을 함께 보고 답해요. 질문할 때 내 Claude 계정의 사용량이 쓰여요.'
+      : '사주 계산 결과와 학년·고민을 함께 보고 답해요. 필요하면 최신 입시·직업 정보를 검색해요.';
+    if (!ready) return;
     const log = $('#chat-log');
     log.innerHTML = chat.view.length ? chat.view.map(msgHtml).join('')
       : `<div class="panel chat-empty"><p><b>무엇이든 물어보세요</b></p><p class="muted">사주 결과와 ${esc(current.person.grade)}, ${esc(current.person.concern || '고민')}을 함께 보고 상담해 드려요.</p></div>`;
@@ -516,6 +523,7 @@
     if (!q || asking) return;
     const person = current.person;
     const summary = A.summaryForAI(current.chart, current.analysis);
+    const turns = chat.view.filter((v) => v.role !== 'error').map((v) => ({ role: v.role === 'ai' ? 'assistant' : 'user', content: v.text }));
     chat.view.push({ role: 'user', text: q });
     renderChat();
     const log = $('#chat-log');
@@ -529,11 +537,11 @@
     asking = new AbortController();
     try {
       const res = await C.ask({
-        apiKey: getKey(), summary, question: q, history: chat.api, signal: asking.signal,
+        apiKey: getKey(), summary, question: q, history: chat.api, turns, signal: asking.signal,
         profile: { mode: person.mode, name: person.name, grade: person.grade, concern: person.concern, goal: person.goal },
         onText: (t) => { bubble.innerHTML = md(t); },
       });
-      chat.api = res.messages;
+      if (res.messages) chat.api = res.messages;
       chat.view.push({ role: 'ai', text: res.text, sources: res.sources });
     } catch (err) {
       chat.view.push({ role: 'error', text: await C.errorMessage(err) });
@@ -607,14 +615,30 @@
   function openSettings() {
     const k = getKey();
     $('#key-status').textContent = k ? `저장됨 (${k.slice(0, 10)}…${k.slice(-4)})` : '저장된 키가 없어요.';
+    $('#key-field').hidden = chatMode !== 'key';
     $('[data-action="delete-person"]').hidden = !current || $('#report').hidden;
+    disarmDelete();
     $('#settings-dialog').showModal();
   }
-  function exportData() {
-    const blob = new Blob([JSON.stringify({ app: 'study-saju', version: 1, people: state.people }, null, 2)], { type: 'application/json' });
+  async function exportData() {
+    const json = JSON.stringify({ app: 'study-saju', version: 1, people: state.people }, null, 2);
+    const filename = `공부사주-백업-${new Date().toISOString().slice(0, 10)}.json`;
+    // claude.ai 안에서는 페이지가 직접 내려받을 수 없어 파일 저장 기능으로 넘긴다
+    const downloads = window.claude ? await window.claude.use('downloads') : null;
+    if (window.claude) {
+      if (!downloads) { toast('이 화면에서는 백업 파일을 받을 수 없어요'); return; }
+      try {
+        await downloads.save({ filename, data: json });
+        toast('백업 파일을 저장했어요');
+      } catch (err) {
+        if (err && err.code !== 'declined') toast('백업 파일을 저장하지 못했어요');
+      }
+      return;
+    }
+    const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `공부사주-백업-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
@@ -639,10 +663,24 @@
       toast('백업 파일을 읽지 못했어요');
     }
   });
+  // 확인 창(confirm)을 쓸 수 없는 화면도 있어서, 버튼을 한 번 더 누르면 삭제한다
+  let deleteTimer = null;
+  function disarmDelete() {
+    const btn = $('[data-action="delete-person"]');
+    clearTimeout(deleteTimer);
+    btn.dataset.armed = '';
+    btn.textContent = '지금 사람 삭제';
+  }
   function deletePerson() {
     if (!current) return;
-    const name = personTitle(current.person);
-    if (!confirm(`${particle(name, '을', '를')} 삭제할까요? 상담 기록도 함께 지워져요.`)) return;
+    const btn = $('[data-action="delete-person"]');
+    if (btn.dataset.armed !== '1') {
+      btn.dataset.armed = '1';
+      btn.textContent = `한 번 더 누르면 ${particle(personTitle(current.person), '이', '가')} 삭제돼요`;
+      deleteTimer = setTimeout(disarmDelete, 4000);
+      return;
+    }
+    disarmDelete();
     const id = current.person.id;
     state.people = state.people.filter((p) => p.id !== id);
     try { localStorage.removeItem(CHAT_PREFIX + id); } catch (err) { /* 무시 */ }
@@ -656,6 +694,7 @@
 
   // ---------- PWA ----------
   function setupInstall() {
+    if (window.claude) return; // claude.ai 안에서는 앱 설치·오프라인 캐시를 쓰지 않는다
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
       navigator.serviceWorker.register('sw.js').catch(() => { /* 설치 기능 없이도 앱은 동작 */ });
     }
@@ -675,6 +714,7 @@
 
   setupForm();
   setupInstall();
+  C.mode().then((m) => { chatMode = m; if (current) renderChat(); });
   if (state.activeId && state.people.some((p) => p.id === state.activeId)) showReport('summary');
   else if (state.people[0]) { state.activeId = state.people[0].id; showReport('summary'); }
   else showForm(null);

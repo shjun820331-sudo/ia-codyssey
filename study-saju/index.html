@@ -175,6 +175,10 @@
           </form>
           <p class="hint">질문할 때마다 본인 계정에 API 사용료가 나가요(질문 1회에 보통 100원 안팎, 웹 검색을 하면 조금 더). 공용 기기에서는 키를 저장하지 마세요.</p>
         </section>
+        <section class="panel" id="chat-off" hidden>
+          <h3>이 화면에서는 AI 상담을 쓸 수 없어요</h3>
+          <p class="muted">원국, 공부 스타일, 공부 흐름, 진로·직업 탭은 그대로 볼 수 있어요.</p>
+        </section>
         <div id="chat-box" hidden>
           <div class="chat-log" id="chat-log" aria-live="polite"></div>
           <div class="chips suggest" id="suggest-chips"></div>
@@ -184,7 +188,7 @@
           </form>
           <div class="chat-tools">
             <button type="button" class="btn btn-ghost btn-sm" data-action="clear-chat">대화 지우기</button>
-            <span class="muted">사주 계산 결과와 학년·고민을 함께 보고 답해요. 필요하면 최신 입시·직업 정보를 검색해요.</span>
+            <span class="muted" id="chat-note"></span>
           </div>
         </div>
       </div>
@@ -197,7 +201,7 @@
   <dialog id="settings-dialog" class="sheet">
     <form method="dialog" class="sheet-inner">
       <h3>설정</h3>
-      <div class="field">
+      <div class="field" id="key-field">
         <span class="label">AI 상담 API 키</span>
         <p class="muted" id="key-status"></p>
         <div class="row-actions">

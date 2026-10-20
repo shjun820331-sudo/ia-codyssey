@@ -1,5 +1,6 @@
-/* 공부사주 - AI 상담 (Claude API)
- * 정적 웹앱이라 서버가 없으므로 사용자가 입력한 본인 API 키로 브라우저에서 바로 호출한다.
+/* 공부사주 - AI 상담
+ * - claude.ai 안(아티팩트)에서 열리면: 보는 사람의 Claude 계정으로 묻는다(sample 기능, API 키 필요 없음, 웹 검색 없음)
+ * - 그 밖(GitHub Pages 등): 서버가 없으므로 사용자가 입력한 본인 API 키로 브라우저에서 Claude API를 바로 호출한다
  * 사주 계산은 하지 않고, 앱이 계산한 결과(summaryForAI)만 근거로 상담하게 한다.
  */
 (function (root) {
@@ -15,7 +16,23 @@
     return sdkPromise;
   }
 
-  function systemPrompt(summary, profile, today) {
+  // claude.ai 뷰어 안에서만 sample 함수가 생기고, 그 밖에서는 null
+  let viewerSamplePromise = null;
+  function viewerSample() {
+    if (!viewerSamplePromise) {
+      viewerSamplePromise = root.claude && typeof root.claude.use === 'function'
+        ? Promise.resolve(root.claude.use('sample')).catch(() => null)
+        : Promise.resolve(null);
+    }
+    return viewerSamplePromise;
+  }
+  // 'viewer': claude.ai 안에서 바로 상담 / 'key': API 키로 상담 / 'off': claude.ai 안인데 상담 기능을 못 씀
+  async function mode() {
+    if (await viewerSample()) return 'viewer';
+    return root.claude ? 'off' : 'key';
+  }
+
+  function systemPrompt(summary, profile, today, canSearch) {
     const who = profile.mode === 'parent'
       ? `상담 대상: 학부모. 자녀(${profile.name || '자녀'}, ${profile.grade || '학년 미입력'})의 공부·진로를 묻는다. 부모에게 말하되, 자녀를 어떻게 도울지(대화법·환경·역할)에 초점을 둔다.`
       : `상담 대상: 학생 본인(${profile.name || '학생'}, ${profile.grade || '학년 미입력'}). 학생에게 직접 말한다.`;
@@ -35,7 +52,9 @@
       '',
       '## 상담 방법',
       '- 사주 + 현실을 함께 본다: 학년, 학교 시험 일정(중간·기말·모의평가·수능), 입시 제도, 공부 습관, 친구·가족 관계, 사회와 직업 세계의 변화(AI 등)까지 고려한다.',
-      '- 최신 정보가 답의 질을 좌우하면(입시 제도 변화, 올해 시험 일정, 직업·산업 전망) 웹 검색을 써서 확인하고, 검색한 사실은 출처와 함께 짧게 쓴다.',
+      canSearch
+        ? '- 최신 정보가 답의 질을 좌우하면(입시 제도 변화, 올해 시험 일정, 직업·산업 전망) 웹 검색을 써서 확인하고, 검색한 사실은 출처와 함께 짧게 쓴다.'
+        : '- 이 상담에서는 웹 검색을 할 수 없다. 입시 제도·시험 일정·직업 전망처럼 해마다 바뀌는 정보는 아는 범위에서 말하되, 학교·교육청·공식 사이트에서 최신 내용을 확인하라고 덧붙인다.',
       '- 질문이 모호하거나 꼭 필요한 정보(현재 성적대, 구체적 상황 등)가 없으면, 먼저 가정한 내용을 밝히고 답한 뒤 마지막에 한두 가지만 되물어라.',
       '- 답의 순서: ① 핵심 한 줄 ② 사주로 본 이유(일간·십신·용신·대운/세운/월운 중 관련된 것만, 쉬운 말로) ③ 지금 시기의 흐름 ④ 이번 주부터 할 수 있는 구체적 실천 2~4개 ⑤ 주의할 시기나 함정(있을 때만).',
       '- 명리 용어는 처음 나올 때 괄호로 쉽게 풀어 준다. 예: 인성(배우고 흡수하는 기운).',
@@ -75,11 +94,28 @@
    * @param opts.signal AbortSignal
    * @returns { messages, text, sources }
    */
+  async function askInViewer(sample, opts) {
+    const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    const rules = systemPrompt(opts.summary, opts.profile, today, false);
+    // sample은 대화를 기억하지 않으므로 규칙(첫 user 턴) + 최근 대화 + 새 질문을 매번 보낸다
+    const turns = [{ role: 'user', content: `${rules}\n\n위 규칙과 자료로 상담을 시작한다.` }]
+      .concat(opts.turns.slice(-12), [{ role: 'user', content: opts.question }]);
+    const res = await sample(turns, {
+      cache: false,
+      signal: opts.signal,
+      onText: ({ text }) => { if (opts.onText) opts.onText(text); },
+    });
+    const text = res.truncated ? `${res.text}\n\n(답이 길어서 중간에 끊겼어요. 나눠서 다시 물어봐 주세요.)` : res.text;
+    return { messages: null, text, sources: [] };
+  }
+
   async function ask(opts) {
+    const sample = await viewerSample();
+    if (sample) return askInViewer(sample, opts);
     const Anthropic = await loadSdk();
     const client = new Anthropic({ apiKey: opts.apiKey, dangerouslyAllowBrowser: true });
     const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-    const system = systemPrompt(opts.summary, opts.profile, today);
+    const system = systemPrompt(opts.summary, opts.profile, today, true);
     const messages = opts.history.concat([{ role: 'user', content: opts.question }]);
 
     let shown = '';
@@ -136,11 +172,26 @@
     return `오류가 났어요: ${err && err.message ? err.message : err}`;
   }
 
+  // sample 기능의 오류는 {code, message} 모양의 일반 객체
+  const SAMPLE_ERRORS = {
+    cancelled: '답변을 멈췄어요.',
+    not_granted: 'Claude 사용을 허용해야 상담할 수 있어요. 페이지의 권한 메뉴에서 허용해 주세요.',
+    sampling_disabled: '이 계정에서는 Claude 상담을 쓸 수 없어요.',
+    rate_limited: '질문이 많아 잠시 쉬어야 해요. 조금 뒤에 다시 물어봐 주세요.',
+    session_expired: 'Claude에 다시 로그인해 주세요.',
+    refused: '이 질문에는 답하기 어려워요. 표현을 바꿔 다시 물어봐 주세요.',
+    prompt_too_large: '대화가 너무 길어졌어요. 대화 지우기를 누른 뒤 다시 물어봐 주세요.',
+    empty_completion: '답이 비어 있어요. 질문을 조금 바꿔 다시 물어봐 주세요.',
+  };
+
   async function errorMessage(err) {
+    if (err && typeof err.code === 'string' && !(err instanceof Error)) {
+      return SAMPLE_ERRORS[err.code] || '연결이 잠시 불안정해요. 다시 물어봐 주세요.';
+    }
     let Anthropic = null;
     try { Anthropic = await loadSdk(); } catch (e) { /* SDK를 못 불러온 경우 */ }
     return describeError(err, Anthropic);
   }
 
-  root.SajuCounsel = { ask, errorMessage, loadSdk, MODEL };
+  root.SajuCounsel = { ask, errorMessage, loadSdk, mode, MODEL };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

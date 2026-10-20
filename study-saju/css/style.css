@@ -55,12 +55,14 @@ a { color: var(--accent); }
 .hint { margin: 0; color: var(--ink-sub); font-size: 12.5px; }
 h2, h3, h4 { letter-spacing: -.02em; }
 
-.wrap { max-width: 680px; margin: 0 auto; padding-inline: 16px; }
+.wrap { max-width: 680px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 main.wrap { padding-block: 12px 96px; display: flex; flex-direction: column; gap: 14px; }
 
 /* ----- Header ----- */
+/* 휴대폰 상단 안전 영역(노치)에 내용이 비쳐 보이지 않도록 배경으로 덮는다 */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
 .topbar {
-  position: sticky; top: 0; z-index: 20; padding-top: env(safe-area-inset-top, 0px);
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
@@ -149,7 +151,7 @@ main.wrap { padding-block: 12px 96px; display: flex; flex-direction: column; gap
 
 .tabs {
   display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 12px;
-  overflow-x: auto; scrollbar-width: none; position: sticky; top: 64px; z-index: 10;
+  overflow-x: auto; scrollbar-width: none; position: sticky; top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 10;
 }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs button { flex: 1 0 auto; height: 38px; padding: 0 12px; border-radius: 9px; font-size: 14px; font-weight: 700; color: var(--ink-sub); white-space: nowrap; }
